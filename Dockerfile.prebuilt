@@ -1,0 +1,16 @@
+# syntax=docker/dockerfile:1
+
+FROM eclipse-temurin:17-jre@sha256:07c1f0f0c3f3c714cea7a9250a8418ec329baa2cea1f77dcda2a7332ff937633
+
+WORKDIR /app
+
+RUN groupadd --system petclinic \
+    && useradd --system --gid petclinic --home-dir /app --shell /usr/sbin/nologin petclinic
+
+COPY --chown=petclinic:petclinic target/spring-petclinic-4.0.0-SNAPSHOT.jar app.jar
+
+USER petclinic
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]
