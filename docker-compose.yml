@@ -1,21 +1,52 @@
 services:
   mysql:
-    image: mysql:9.6
+    image: mysql:9.6@sha256:c5df04bee1a42b74a5841c6409e669cf62126cd0416f00c1cea8ab933b9361b9
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=
-      - MYSQL_ALLOW_EMPTY_PASSWORD=true
-      - MYSQL_USER=petclinic
-      - MYSQL_PASSWORD=petclinic
-      - MYSQL_DATABASE=petclinic
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql.root.password
+      MYSQL_USER: ${MYSQL_USER:-petclinic}
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql.password
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-petclinic}
+    secrets:
+      - source: mysql_root_password
+        target: mysql.root.password
+      - source: mysql_password
+        target: mysql.password
     volumes:
       - "./conf.d:/etc/mysql/conf.d:ro"
-  postgres:
-    image: postgres:18.3
+      - petclinic-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$(cat /run/secrets/mysql.root.password)\" mysqladmin ping -h localhost -uroot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: spring-petclinic:compose
     ports:
-      - "5432:5432"
+      - "127.0.0.1:8080:8080"
     environment:
-      - POSTGRES_PASSWORD=petclinic
-      - POSTGRES_USER=petclinic
-      - POSTGRES_DB=petclinic
+      SPRING_CONFIG_IMPORT: optional:configtree:/run/secrets/
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-mysql}
+      MYSQL_URL: ${MYSQL_URL:-jdbc:mysql://mysql:3306/petclinic}
+      MYSQL_USER: ${MYSQL_USER:-petclinic}
+    secrets:
+      - source: mysql_password
+        target: mysql.password
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+secrets:
+  mysql_root_password:
+    file: ./secrets/mysql_root_password.txt
+  mysql_password:
+    file: ./secrets/mysql_password.txt
+
+volumes:
+  petclinic-mysql-data:

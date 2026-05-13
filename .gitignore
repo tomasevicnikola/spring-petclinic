@@ -42,6 +42,13 @@ out/
 ### VS Code ###
 .vscode/
 
+### Local environment ###
+.env
+.env.*
+secrets/*
+!secrets/README.md
+!secrets/.gitkeep
+
 ### CSS ###
 _site/
 *.css
