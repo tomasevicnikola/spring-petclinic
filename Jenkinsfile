@@ -106,11 +106,22 @@ set -euo pipefail
                     sh '''#!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE_TAG="${MR_DOCKER_REPO}/${IMAGE_NAME}:${SHORT_GIT_COMMIT}"
-trap 'docker logout "${MR_DOCKER_REPO}" >/dev/null 2>&1 || true' EXIT
+REGISTRY="${MR_DOCKER_REPO}"
+IMAGE_TAG="${REGISTRY}/${IMAGE_NAME}:${SHORT_GIT_COMMIT}"
+
+export DOCKER_CONFIG="${WORKSPACE}/.docker-config"
+rm -rf "${DOCKER_CONFIG}"
+umask 077
+mkdir -p "${DOCKER_CONFIG}"
+
+cleanup() {
+    docker logout "${REGISTRY}" >/dev/null 2>&1 || true
+    rm -rf "${DOCKER_CONFIG}"
+}
+trap cleanup EXIT
 
 DOCKER_BUILDKIT=1 docker build -t "${IMAGE_TAG}" .
-printf '%s' "${NEXUS_PASSWORD}" | docker login "${MR_DOCKER_REPO}" --username "${NEXUS_USERNAME}" --password-stdin
+printf '%s' "${NEXUS_PASSWORD}" | docker login "${REGISTRY}" --username "${NEXUS_USERNAME}" --password-stdin
 docker push "${IMAGE_TAG}"
 '''
                 }
@@ -128,11 +139,22 @@ docker push "${IMAGE_TAG}"
                     sh '''#!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE_TAG="${MAIN_DOCKER_REPO}/${IMAGE_NAME}:${SHORT_GIT_COMMIT}"
-trap 'docker logout "${MAIN_DOCKER_REPO}" >/dev/null 2>&1 || true' EXIT
+REGISTRY="${MAIN_DOCKER_REPO}"
+IMAGE_TAG="${REGISTRY}/${IMAGE_NAME}:${SHORT_GIT_COMMIT}"
+
+export DOCKER_CONFIG="${WORKSPACE}/.docker-config"
+rm -rf "${DOCKER_CONFIG}"
+umask 077
+mkdir -p "${DOCKER_CONFIG}"
+
+cleanup() {
+    docker logout "${REGISTRY}" >/dev/null 2>&1 || true
+    rm -rf "${DOCKER_CONFIG}"
+}
+trap cleanup EXIT
 
 DOCKER_BUILDKIT=1 docker build -t "${IMAGE_TAG}" .
-printf '%s' "${NEXUS_PASSWORD}" | docker login "${MAIN_DOCKER_REPO}" --username "${NEXUS_USERNAME}" --password-stdin
+printf '%s' "${NEXUS_PASSWORD}" | docker login "${REGISTRY}" --username "${NEXUS_USERNAME}" --password-stdin
 docker push "${IMAGE_TAG}"
 '''
                 }
