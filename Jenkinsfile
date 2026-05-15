@@ -1,3 +1,33 @@
+def dockerBuildAndPush(String registry) {
+    withEnv(["TARGET_DOCKER_REPO=${registry}"]) {
+        withCredentials([usernamePassword(credentialsId: 'nexus-docker-creds',
+            usernameVariable: 'NEXUS_USERNAME',
+            passwordVariable: 'NEXUS_PASSWORD')]) {
+            sh '''#!/usr/bin/env bash
+set -euo pipefail
+
+REGISTRY="${TARGET_DOCKER_REPO}"
+IMAGE_TAG="${REGISTRY}/${IMAGE_NAME}:${SHORT_GIT_COMMIT}"
+
+export DOCKER_CONFIG="${WORKSPACE}/.docker-config"
+rm -rf "${DOCKER_CONFIG}"
+umask 077
+mkdir -p "${DOCKER_CONFIG}"
+
+cleanup() {
+    docker logout "${REGISTRY}" >/dev/null 2>&1 || true
+    rm -rf "${DOCKER_CONFIG}"
+}
+trap cleanup EXIT
+
+DOCKER_BUILDKIT=1 docker build -t "${IMAGE_TAG}" .
+printf '%s' "${NEXUS_PASSWORD}" | docker login "${REGISTRY}" --username "${NEXUS_USERNAME}" --password-stdin
+docker push "${IMAGE_TAG}"
+'''
+        }
+    }
+}
+
 pipeline {
     agent { label 'docker-agent' }
 
@@ -80,30 +110,8 @@ set -euo pipefail
                 }
             }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'nexus-docker-creds',
-                    usernameVariable: 'NEXUS_USERNAME',
-                    passwordVariable: 'NEXUS_PASSWORD')]) {
-                    sh '''#!/usr/bin/env bash
-set -euo pipefail
-
-REGISTRY="${MR_DOCKER_REPO}"
-IMAGE_TAG="${REGISTRY}/${IMAGE_NAME}:${SHORT_GIT_COMMIT}"
-
-export DOCKER_CONFIG="${WORKSPACE}/.docker-config"
-rm -rf "${DOCKER_CONFIG}"
-umask 077
-mkdir -p "${DOCKER_CONFIG}"
-
-cleanup() {
-    docker logout "${REGISTRY}" >/dev/null 2>&1 || true
-    rm -rf "${DOCKER_CONFIG}"
-}
-trap cleanup EXIT
-
-DOCKER_BUILDKIT=1 docker build -t "${IMAGE_TAG}" .
-printf '%s' "${NEXUS_PASSWORD}" | docker login "${REGISTRY}" --username "${NEXUS_USERNAME}" --password-stdin
-docker push "${IMAGE_TAG}"
-'''
+                script {
+                    dockerBuildAndPush(env.MR_DOCKER_REPO)
                 }
             }
         }
@@ -113,30 +121,8 @@ docker push "${IMAGE_TAG}"
                 branch 'main'
             }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'nexus-docker-creds',
-                    usernameVariable: 'NEXUS_USERNAME',
-                    passwordVariable: 'NEXUS_PASSWORD')]) {
-                    sh '''#!/usr/bin/env bash
-set -euo pipefail
-
-REGISTRY="${MAIN_DOCKER_REPO}"
-IMAGE_TAG="${REGISTRY}/${IMAGE_NAME}:${SHORT_GIT_COMMIT}"
-
-export DOCKER_CONFIG="${WORKSPACE}/.docker-config"
-rm -rf "${DOCKER_CONFIG}"
-umask 077
-mkdir -p "${DOCKER_CONFIG}"
-
-cleanup() {
-    docker logout "${REGISTRY}" >/dev/null 2>&1 || true
-    rm -rf "${DOCKER_CONFIG}"
-}
-trap cleanup EXIT
-
-DOCKER_BUILDKIT=1 docker build -t "${IMAGE_TAG}" .
-printf '%s' "${NEXUS_PASSWORD}" | docker login "${REGISTRY}" --username "${NEXUS_USERNAME}" --password-stdin
-docker push "${IMAGE_TAG}"
-'''
+                script {
+                    dockerBuildAndPush(env.MAIN_DOCKER_REPO)
                 }
             }
         }
