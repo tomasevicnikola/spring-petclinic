@@ -47,9 +47,6 @@ git rev-parse --abbrev-ref HEAD
         }
 
         stage('Checkstyle') {
-            when {
-                expression { env.IS_MAIN_BRANCH != 'true' }
-            }
             steps {
                 sh '''#!/usr/bin/env bash
 set -euo pipefail
@@ -66,9 +63,6 @@ set -euo pipefail
         }
 
         stage('Test') {
-            when {
-                expression { env.IS_MAIN_BRANCH != 'true' }
-            }
             steps {
                 sh '''#!/usr/bin/env bash
 set -euo pipefail
@@ -84,9 +78,6 @@ set -euo pipefail
         }
 
         stage('Build Application') {
-            when {
-                expression { env.IS_MAIN_BRANCH != 'true' }
-            }
             steps {
                 sh '''#!/usr/bin/env bash
 set -euo pipefail
