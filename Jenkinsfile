@@ -28,20 +28,7 @@ git rev-parse --short=8 HEAD
                         returnStdout: true
                     ).trim()
 
-                    def detectedBranch = env.CHANGE_BRANCH ?: env.BRANCH_NAME ?: env.GIT_BRANCH ?: sh(
-                        script: '''#!/usr/bin/env bash
-set -euo pipefail
-git rev-parse --abbrev-ref HEAD
-''',
-                        returnStdout: true
-                    ).trim()
-
-                    detectedBranch = detectedBranch.replaceFirst('^origin/', '').replaceFirst('^refs/heads/', '')
-
-                    env.BUILD_BRANCH = detectedBranch
-                    env.IS_MAIN_BRANCH = detectedBranch == 'main' ? 'true' : 'false'
-
-                    echo "Building ${env.BUILD_BRANCH} at ${env.SHORT_GIT_COMMIT}"
+                    echo "Building ${env.BRANCH_NAME} at ${env.SHORT_GIT_COMMIT}"
                 }
             }
         }
@@ -88,7 +75,9 @@ set -euo pipefail
 
         stage('Docker Build and Push to MR Nexus') {
             when {
-                expression { env.IS_MAIN_BRANCH != 'true' }
+                not {
+                    branch 'main'
+                }
             }
             steps {
                 withCredentials([usernamePassword(credentialsId: 'nexus-docker-creds',
@@ -121,7 +110,7 @@ docker push "${IMAGE_TAG}"
 
         stage('Docker Build and Push to Main Nexus') {
             when {
-                expression { env.IS_MAIN_BRANCH == 'true' }
+                branch 'main'
             }
             steps {
                 withCredentials([usernamePassword(credentialsId: 'nexus-docker-creds',
