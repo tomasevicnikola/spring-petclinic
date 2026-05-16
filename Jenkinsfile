@@ -1,10 +1,10 @@
-def dockerBuildAndPush(String registryEnvVar) {
-    def registry = env[registryEnvVar]?.trim()
-    if (!registry) {
-        error "${registryEnvVar} must be configured in Jenkins environment variables"
+def dockerBuildAndPush(String registry) {
+    def targetRegistry = registry?.trim()
+    if (!targetRegistry) {
+        error 'Docker registry must be configured in Jenkins environment variables'
     }
 
-    withEnv(["TARGET_DOCKER_REPO=${registry}"]) {
+    withEnv(["TARGET_DOCKER_REPO=${targetRegistry}"]) {
         withCredentials([usernamePassword(credentialsId: 'nexus-docker-creds',
             usernameVariable: 'NEXUS_USERNAME',
             passwordVariable: 'NEXUS_PASSWORD')]) {
@@ -113,7 +113,7 @@ set -euo pipefail
             }
             steps {
                 script {
-                    dockerBuildAndPush('MR_DOCKER_REPO')
+                    dockerBuildAndPush(env.MR_DOCKER_REPO)
                 }
             }
         }
@@ -124,7 +124,7 @@ set -euo pipefail
             }
             steps {
                 script {
-                    dockerBuildAndPush('MAIN_DOCKER_REPO')
+                    dockerBuildAndPush(env.MAIN_DOCKER_REPO)
                 }
             }
         }
