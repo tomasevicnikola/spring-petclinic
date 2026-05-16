@@ -1,4 +1,9 @@
-def dockerBuildAndPush(String registry) {
+def dockerBuildAndPush(String registryEnvVar) {
+    def registry = env[registryEnvVar]?.trim()
+    if (!registry) {
+        error "${registryEnvVar} must be configured in Jenkins environment variables"
+    }
+
     withEnv(["TARGET_DOCKER_REPO=${registry}"]) {
         withCredentials([usernamePassword(credentialsId: 'nexus-docker-creds',
             usernameVariable: 'NEXUS_USERNAME',
@@ -40,9 +45,6 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'spring-petclinic'
-        // Jenkins runs this pipeline inside an agent container, so Nexus is reached through the host.
-        MAIN_DOCKER_REPO = 'host.docker.internal:8082'
-        MR_DOCKER_REPO = 'host.docker.internal:8083'
     }
 
     stages {
@@ -111,7 +113,7 @@ set -euo pipefail
             }
             steps {
                 script {
-                    dockerBuildAndPush(env.MR_DOCKER_REPO)
+                    dockerBuildAndPush('MR_DOCKER_REPO')
                 }
             }
         }
@@ -122,7 +124,7 @@ set -euo pipefail
             }
             steps {
                 script {
-                    dockerBuildAndPush(env.MAIN_DOCKER_REPO)
+                    dockerBuildAndPush('MAIN_DOCKER_REPO')
                 }
             }
         }
