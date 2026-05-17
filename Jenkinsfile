@@ -1,10 +1,10 @@
-def dockerBuildAndPush(String registry) {
+def dockerBuildAndPush(String registry, boolean pushLatest = false) {
     def targetRegistry = registry?.trim()
     if (!targetRegistry) {
         error 'Docker registry must be configured in Jenkins environment variables'
     }
 
-    withEnv(["TARGET_DOCKER_REPO=${targetRegistry}"]) {
+    withEnv(["TARGET_DOCKER_REPO=${targetRegistry}", "PUSH_LATEST_TAG=${pushLatest}"]) {
         withCredentials([usernamePassword(credentialsId: 'nexus-docker-creds',
             usernameVariable: 'NEXUS_USERNAME',
             passwordVariable: 'NEXUS_PASSWORD')]) {
@@ -13,6 +13,7 @@ set -euo pipefail
 
 REGISTRY="${TARGET_DOCKER_REPO}"
 IMAGE_TAG="${REGISTRY}/${IMAGE_NAME}:${SHORT_GIT_COMMIT}"
+LATEST_TAG="${REGISTRY}/${IMAGE_NAME}:latest"
 
 export DOCKER_CONFIG="${WORKSPACE}/.docker-config"
 rm -rf "${DOCKER_CONFIG}"
@@ -26,8 +27,15 @@ cleanup() {
 trap cleanup EXIT
 
 DOCKER_BUILDKIT=1 docker build -t "${IMAGE_TAG}" .
+if [ "${PUSH_LATEST_TAG}" = "true" ]; then
+    docker tag "${IMAGE_TAG}" "${LATEST_TAG}"
+fi
+
 printf '%s' "${NEXUS_PASSWORD}" | docker login "${REGISTRY}" --username "${NEXUS_USERNAME}" --password-stdin
 docker push "${IMAGE_TAG}"
+if [ "${PUSH_LATEST_TAG}" = "true" ]; then
+    docker push "${LATEST_TAG}"
+fi
 '''
         }
     }
@@ -124,7 +132,7 @@ set -euo pipefail
             }
             steps {
                 script {
-                    dockerBuildAndPush(env.MAIN_DOCKER_REPO)
+                    dockerBuildAndPush(env.MAIN_DOCKER_REPO, true)
                 }
             }
         }
