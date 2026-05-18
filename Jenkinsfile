@@ -108,7 +108,25 @@ set -euo pipefail
             steps {
                 sh '''#!/usr/bin/env bash
 set -euo pipefail
-./mvnw -B -DskipTests package
+./mvnw -B -DskipTests clean package
+
+jar_list="$(mktemp)"
+trap 'rm -f "${jar_list}"' EXIT
+
+find target -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' | sort > "${jar_list}"
+jar_count="$(wc -l < "${jar_list}" | tr -d ' ')"
+if [ "${jar_count}" -ne 1 ]; then
+    echo "Expected exactly one application JAR in target, found ${jar_count}" >&2
+    cat "${jar_list}" >&2
+    exit 1
+fi
+
+application_jar="$(sed -n '1p' "${jar_list}")"
+if [ "${application_jar}" != "target/app.jar" ]; then
+    mv "${application_jar}" target/app.jar
+fi
+
+test -s target/app.jar
 '''
             }
         }

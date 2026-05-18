@@ -1,6 +1,7 @@
 .git
 .gitignore
-target
+target/*
+!target/app.jar
 .idea
 .vscode
 *.iml
