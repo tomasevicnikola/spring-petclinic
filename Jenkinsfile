@@ -139,6 +139,22 @@ set -euo pipefail
     }
 
     post {
+        failure {
+            catchError(buildResult: 'FAILURE',
+                message: 'Failure notification email could not be sent') {
+                emailext recipientProviders: [developers(), culprits(), requestor()],
+                    subject: "Failed Pipeline: ${currentBuild.fullDisplayName}",
+                    mimeType: 'text/plain',
+                    body: """Pipeline failed.
+
+Job: ${env.JOB_NAME}
+Build: #${env.BUILD_NUMBER}
+Branch: ${env.BRANCH_NAME}
+Commit: ${env.SHORT_GIT_COMMIT ?: 'unknown'}
+Build URL: ${env.BUILD_URL}
+"""
+            }
+        }
         always {
             cleanWs()
         }
