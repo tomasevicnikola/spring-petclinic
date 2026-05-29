@@ -22,7 +22,7 @@ env:
 jobs:
   checkstyle:
     name: Checkstyle
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
@@ -56,7 +56,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
@@ -90,7 +90,7 @@ jobs:
 
   package:
     name: Build without tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - checkstyle
       - test
@@ -143,7 +143,7 @@ jobs:
 
   docker:
     name: Docker build and push
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       id-token: write
