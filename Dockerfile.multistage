@@ -5,14 +5,28 @@ FROM bellsoft/liberica-openjdk-alpine-musl:17.0.19-11@sha256:4650dc9a56921824d3f
 WORKDIR /workspace
 
 COPY mvnw pom.xml ./
-COPY .mvn .mvn
+COPY .mvn/ .mvn/
 
 RUN chmod +x mvnw
-RUN --mount=type=cache,target=/root/.m2 ./mvnw dependency:go-offline -B
+RUN --mount=type=cache,target=/root/.m2 \
+    ./mvnw --batch-mode --no-transfer-progress dependency:go-offline
 
-COPY src src
+COPY src/ src/
 
-RUN --mount=type=cache,target=/root/.m2 ./mvnw clean package -DskipTests
+RUN --mount=type=cache,target=/root/.m2 \
+    ./mvnw --batch-mode --no-transfer-progress clean package -DskipTests
+
+RUN set -eu; \
+    jar_list="$(mktemp)"; \
+    find target -maxdepth 1 -type f -name "*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" ! -name "*.original" | sort > "${jar_list}"; \
+    jar_count="$(wc -l < "${jar_list}" | tr -d " ")"; \
+    if [ "${jar_count}" -ne 1 ]; then \
+      echo "Expected exactly one application JAR in target, found ${jar_count}."; \
+      cat "${jar_list}"; \
+      exit 1; \
+    fi; \
+    cp "$(sed -n "1p" "${jar_list}")" /workspace/app.jar; \
+    test -s /workspace/app.jar
 
 
 FROM bellsoft/liberica-openjre-alpine-musl:17.0.19-11@sha256:4abefe339e2a7d1c0a5189c33f4efdd649a06b23b6e25a5fa1fdbb2c374af212 AS runtime
@@ -21,7 +35,7 @@ WORKDIR /app
 
 RUN addgroup -S petclinic && adduser -S petclinic -G petclinic
 
-COPY --from=build --chown=petclinic:petclinic /workspace/target/*.jar app.jar
+COPY --from=build --chown=petclinic:petclinic /workspace/app.jar app.jar
 
 USER petclinic
 

@@ -7,8 +7,7 @@ secrets
 *.pem
 *.key
 
-target/*
-!target/app.jar
+target
 build
 .gradle
 

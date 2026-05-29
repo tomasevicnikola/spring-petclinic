@@ -88,59 +88,6 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  package:
-    name: Build without tests
-    runs-on: ubuntu-24.04
-    needs:
-      - checkstyle
-      - test
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Set up Java
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: '17'
-          cache: maven
-          cache-dependency-path: |
-            pom.xml
-            .mvn/wrapper/maven-wrapper.properties
-
-      - name: Package application
-        run: |
-          set -euo pipefail
-
-          ./mvnw ${MAVEN_ARGS} clean package -DskipTests
-
-          jar_list="$(mktemp)"
-          find target -maxdepth 1 -type f -name "*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" ! -name "*.original" | sort > "${jar_list}"
-          jar_count="$(wc -l < "${jar_list}" | tr -d ' ')"
-
-          if [ "${jar_count}" -ne 1 ]; then
-            echo "::error::Expected exactly one application JAR in target, found ${jar_count}."
-            cat "${jar_list}"
-            exit 1
-          fi
-
-          application_jar="$(sed -n '1p' "${jar_list}")"
-          if [ "${application_jar}" != "target/app.jar" ]; then
-            mv "${application_jar}" target/app.jar
-          fi
-
-          test -s target/app.jar
-
-      - name: Upload app artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: app-jar
-          path: target/app.jar
-          if-no-files-found: error
-          retention-days: 14
-
   docker:
     name: Docker build and push
     runs-on: ubuntu-24.04
@@ -148,22 +95,14 @@ jobs:
       contents: read
       id-token: write
     needs:
-      - package
+      - checkstyle
+      - test
     if: ${{ github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
     timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      - name: Download app artifact
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        with:
-          name: app-jar
-          path: target
-
-      - name: Verify app artifact
-        run: test -s target/app.jar
 
       - name: Resolve image tags
         id: image
@@ -220,7 +159,9 @@ jobs:
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7
         with:
           context: .
-          file: ./Dockerfile
+          file: ./Dockerfile.multistage
           pull: true
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: ${{ steps.image.outputs.tags }}
