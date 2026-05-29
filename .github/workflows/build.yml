@@ -74,7 +74,8 @@ jobs:
             .mvn/wrapper/maven-wrapper.properties
 
       - name: Run tests
-        run: ./mvnw ${MAVEN_ARGS} test
+        # Postgres Docker Compose integration coverage should move to a dedicated integration-test job.
+        run: ./mvnw ${MAVEN_ARGS} test -Dtest='!PostgresIntegrationTests'
 
       - name: Upload Surefire reports
         if: always()
