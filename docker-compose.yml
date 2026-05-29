@@ -23,6 +23,23 @@ services:
       retries: 10
       start_period: 30s
 
+  postgres:
+    image: postgres:18.3
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-petclinic}
+      POSTGRES_PASSWORD: ${POSTGRES_PASS:-petclinic}
+      POSTGRES_DB: ${POSTGRES_DB:-petclinic}
+    volumes:
+      - petclinic-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   app:
     build:
       context: .
@@ -50,3 +67,4 @@ secrets:
 
 volumes:
   petclinic-mysql-data:
+  petclinic-postgres-data:
